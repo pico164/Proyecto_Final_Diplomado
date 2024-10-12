@@ -4,7 +4,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { useCart } from "../context/CartContext";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import styles from "./css/Home.module.css";
+import styles from "../css/Home.module.css";
 
 const Shop = ({ searchTerm = "" }) => {
   const { addToCart } = useCart();
