@@ -7,6 +7,8 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { ToastContainer, toast } from "react-toastify";
@@ -21,6 +23,7 @@ const CategoriesPanel = () => {
 
   const storage = getStorage();
 
+  // Cargar las categorías desde Firestore
   const fetchCategorias = async () => {
     const categoriasCollection = collection(db, "categorias");
     const categoriasSnapshot = await getDocs(categoriasCollection);
@@ -31,18 +34,45 @@ const CategoriesPanel = () => {
     setCategorias(categoriasList);
   };
 
+  const checkProductsForCategory = async (categoryId) => {
+    try {
+      const productosCollection = collection(db, "productos"); // Asegúrate que sea la colección correcta
+      const q = query(
+        productosCollection,
+        where("categoriaId", "==", categoryId)
+      );
+      const productosSnapshot = await getDocs(q);
+
+      console.log(
+        "Datos del snapshot de productos:",
+        productosSnapshot.docs.map((doc) => doc.data())
+      );
+
+      if (productosSnapshot.size > 0) {
+        console.log(`La categoría ${categoryId} tiene productos asociados`);
+        return true;
+      } else {
+        console.log(`La categoría ${categoryId} no tiene productos asociados`);
+        return false;
+      }
+    } catch (error) {
+      console.error("Error al verificar productos asociados:", error);
+      toast.error("Error al verificar productos asociados.");
+      return false;
+    }
+  };
+
   const handleAgregarCategoria = async (e) => {
     e.preventDefault();
-    if (nombreCategoria.trim() === "") return; // Validar solo el nombre
+    if (nombreCategoria.trim() === "") return;
 
     let url = "";
-    // Si estamos editando y no hay nueva imagen
     if (categoriaEnEdicion && !imagenCategoria) {
-      url = categoriaEnEdicion.imagen; // Mantener la imagen actual
+      url = categoriaEnEdicion.imagen;
     } else if (imagenCategoria) {
       const imagenRef = ref(storage, `categorias/${imagenCategoria.name}`);
       await uploadBytes(imagenRef, imagenCategoria);
-      url = await getDownloadURL(imagenRef); // Obtener URL de la nueva imagen
+      url = await getDownloadURL(imagenRef);
     }
 
     try {
@@ -58,25 +88,34 @@ const CategoriesPanel = () => {
         toast.success("Categoría agregada con éxito");
       }
 
-      // Restablecer el formulario
       restablecerFormulario();
       fetchCategorias();
     } catch (error) {
-      toast.error("Error al agregar o actualizar la categoría");
+      toast.error("Error al agregar o actualizar la categoría.");
     }
   };
 
   const handleEliminarCategoria = async (id) => {
-    if (
-      window.confirm("¿Estás seguro de que deseas eliminar esta categoría?")
-    ) {
-      try {
-        await deleteDoc(doc(db, "categorias", id));
-        toast.success("Categoría eliminada con éxito");
-        fetchCategorias();
-      } catch (error) {
-        toast.error("Error al eliminar la categoría");
+    const confirmDelete = window.confirm(
+      "¿Estás seguro de que deseas eliminar esta categoría?"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const hasAssociatedProducts = await checkProductsForCategory(id);
+      if (hasAssociatedProducts) {
+        toast.error(
+          "No puedes eliminar la categoría, tiene productos asociados."
+        );
+        return; // Cancela la eliminación si tiene productos
       }
+
+      await deleteDoc(doc(db, "categorias", id)); // Elimina la categoría
+      toast.success("Categoría eliminada con éxito.");
+      fetchCategorias(); // Refresca la lista de categorías
+    } catch (error) {
+      console.error("Error al eliminar la categoría:", error);
+      toast.error("Error al eliminar la categoría.");
     }
   };
 
@@ -90,10 +129,9 @@ const CategoriesPanel = () => {
     setCategoriaEnEdicion(categoria);
     setNombreCategoria(categoria.nombre);
     setImagenPreview(categoria.imagen);
-    setImagenCategoria(null); // Resetear imagen al editar
+    setImagenCategoria(null); // Resetea la imagen en caso de estar editando
   };
 
-  // Función para restablecer el formulario
   const restablecerFormulario = () => {
     setNombreCategoria("");
     setImagenCategoria(null);
@@ -107,8 +145,7 @@ const CategoriesPanel = () => {
 
   return (
     <div className="container mt-5">
-      <h2 className="text-center mb-4">Gestión de Categorías</h2>{" "}
-      {/* Separación del título */}
+      <h2 className="text-center mb-4">Gestión de Categorías</h2>
       <form onSubmit={handleAgregarCategoria} className="mb-4">
         <div className="mb-3">
           <input
@@ -117,7 +154,7 @@ const CategoriesPanel = () => {
             value={nombreCategoria}
             onChange={(e) => setNombreCategoria(e.target.value)}
             required
-            className="form-control" // Estilo de Bootstrap
+            className="form-control"
           />
         </div>
         <div className="mb-3">
@@ -125,8 +162,8 @@ const CategoriesPanel = () => {
             type="file"
             accept="image/*"
             onChange={handleImagenChange}
-            required={!categoriaEnEdicion} // Requiere imagen solo si no está editando
-            className="form-control" // Estilo de Bootstrap
+            required={!categoriaEnEdicion}
+            className="form-control"
           />
         </div>
         {imagenPreview && (
