@@ -23,7 +23,6 @@ const CategoriesPanel = () => {
 
   const storage = getStorage();
 
-  // Cargar las categorías desde Firestore
   const fetchCategorias = async () => {
     const categoriasCollection = collection(db, "categorias");
     const categoriasSnapshot = await getDocs(categoriasCollection);
@@ -36,7 +35,7 @@ const CategoriesPanel = () => {
 
   const checkProductsForCategory = async (categoryId) => {
     try {
-      const productosCollection = collection(db, "productos"); // Asegúrate que sea la colección correcta
+      const productosCollection = collection(db, "productos");
       const q = query(
         productosCollection,
         where("categoriaId", "==", categoryId)
@@ -107,12 +106,12 @@ const CategoriesPanel = () => {
         toast.error(
           "No puedes eliminar la categoría, tiene productos asociados."
         );
-        return; // Cancela la eliminación si tiene productos
+        return;
       }
 
-      await deleteDoc(doc(db, "categorias", id)); // Elimina la categoría
+      await deleteDoc(doc(db, "categorias", id));
       toast.success("Categoría eliminada con éxito.");
-      fetchCategorias(); // Refresca la lista de categorías
+      fetchCategorias();
     } catch (error) {
       console.error("Error al eliminar la categoría:", error);
       toast.error("Error al eliminar la categoría.");
@@ -129,7 +128,7 @@ const CategoriesPanel = () => {
     setCategoriaEnEdicion(categoria);
     setNombreCategoria(categoria.nombre);
     setImagenPreview(categoria.imagen);
-    setImagenCategoria(null); // Resetea la imagen en caso de estar editando
+    setImagenCategoria(null);
   };
 
   const restablecerFormulario = () => {
